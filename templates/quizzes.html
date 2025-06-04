@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('quizzes') }} - {{ t('school_platform') }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-question-circle me-2"></i>{{ t('quizzes') }}</h2>
+                {% if current_user.role == 'teacher' %}
+                <div>
+                    <a href="{{ url_for('create_quiz') }}" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>{{ t('create_new_quiz') }}
+                    </a>
+                    {% if quizzes and quizzes|selectattr('teacher_id', 'equalto', current_user.id)|list %}
+                    <button type="button" class="btn btn-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteAllQuizzesModal">
+                        <i class="fas fa-trash-alt me-2"></i>{{ t('delete_all_quizzes') }}
+                    </button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if quizzes %}
+    <div class="row">
+        {% for quiz in quizzes %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title">{{ quiz.title }}</h5>
+                        {% if quiz.is_published %}
+                            <span class="badge bg-success">{{ t('published') }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ t('draft') }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if quiz.description %}
+                    <p class="card-text">{{ quiz.description[:100] }}{% if quiz.description|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                    
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="fas fa-user me-1"></i>{{ quiz.author.username }}
+                            <i class="fas fa-calendar ms-2 me-1"></i>{{ quiz.created_at.strftime('%m/%d/%Y') }}
+                        </small>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <span class="badge bg-info">
+                            <i class="fas fa-question me-1"></i>{{ quiz.questions|length }} {{ t('questions') }}
+                        </span>
+                        {% if current_user.role == 'student' %}
+                        {% set attempts = quiz.attempts|selectattr('student_id', 'equalto', current_user.id)|list %}
+                        {% if attempts %}
+                        <span class="badge bg-warning">
+                            <i class="fas fa-redo me-1"></i>{{ attempts|length }} {{ t('total_attempts') }}
+                        </span>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-transparent">
+                    {% if current_user.role == 'student' %}
+                    <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-play me-1"></i>{{ t('take_quiz') }}
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-eye me-1"></i>{{ t('preview_quiz') }}
+                    </a>
+                    {% endif %}
+                    
+                    {% if current_user.role == 'teacher' and quiz.teacher_id == current_user.id %}
+                    <a href="{{ url_for('edit_quiz', quiz_id=quiz.id) }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-edit me-1"></i>{{ t('edit') }}
+                    </a>
+                    <button class="btn btn-outline-info btn-sm" onclick="viewResults({{ quiz.id }})">
+                        <i class="fas fa-chart-bar me-1"></i>{{ t('results') }}
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="confirmDeleteQuiz({{ quiz.id }}, '{{ quiz.title }}')">
+                        <i class="fas fa-trash-alt me-1"></i>{{ t('delete') }}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="text-center py-5">
+                <i class="fas fa-question-circle fa-5x text-muted mb-4"></i>
+                <h3 class="text-muted">{{ t('no_quizzes_available') }}</h3>
+                <p class="text-muted">{{ t('no_quizzes_available_message') }}</p>
+                {% if current_user.role == 'teacher' %}
+                <a href="{{ url_for('create_quiz') }}" class="btn btn-success">
+                    <i class="fas fa-plus me-2"></i>{{ t('create_first_quiz') }}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Quiz Results Modal -->
+<div class="modal fade" id="resultsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ t('quiz_results') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="resultsContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">{{ t('loading') }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Quiz Confirmation Modal -->
+<div class="modal fade" id="deleteQuizModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ t('confirm_delete') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteQuizMessage">{{ t('confirm_delete_quiz_message') }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
+                <form id="deleteQuizForm" method="POST" action="">
+                    <button type="submit" class="btn btn-danger">{{ t('delete') }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete All Quizzes Confirmation Modal -->
+<div class="modal fade" id="deleteAllQuizzesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ t('confirm_delete_all') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>{{ t('confirm_delete_all_quizzes_message') }}</p>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>{{ t('this_action_cannot_be_undone') }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ t('cancel') }}</button>
+                <form method="POST" action="{{ url_for('delete_all_quizzes') }}">
+                    <button type="submit" class="btn btn-danger">{{ t('delete_all_quizzes') }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function viewResults(quizId) {
+    var modal = new bootstrap.Modal(document.getElementById('resultsModal'));
+    var resultsContent = document.getElementById('resultsContent');
+    
+    // Show loading spinner
+    resultsContent.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+    
+    modal.show();
+    
+    // Fetch quiz results
+    fetch('/api/quiz_results/' + quizId)
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            var html = '<div class="row mb-3">' +
+                '<div class="col-md-3">' +
+                    '<div class="card bg-primary text-white">' +
+                        '<div class="card-body text-center">' +
+                            '<h4>' + (data.total_attempts || 0) + '</h4>' +
+                            '<p class="mb-0">{{ t("total_attempts") }}</p>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="col-md-3">' +
+                    '<div class="card bg-success text-white">' +
+                        '<div class="card-body text-center">' +
+                            '<h4>' + (data.passed || 0) + '</h4>' +
+                            '<p class="mb-0">{{ t("passed") }}</p>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="col-md-3">' +
+                    '<div class="card bg-danger text-white">' +
+                        '<div class="card-body text-center">' +
+                            '<h4>' + (data.failed || 0) + '</h4>' +
+                            '<p class="mb-0">{{ t("failed") }}</p>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="col-md-3">' +
+                    '<div class="card bg-info text-white">' +
+                        '<div class="card-body text-center">' +
+                            '<h4>' + (data.average_score || 0) + '%</h4>' +
+                            '<p class="mb-0">{{ t("average_score") }}</p>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<h6>{{ t("recent_attempts") }}:</h6>' +
+            '<div class="table-responsive">' +
+                '<table class="table table-sm">' +
+                    '<thead>' +
+                        '<tr>' +
+                            '<th>{{ t("student") }}</th>' +
+                            '<th>{{ t("score") }}</th>' +
+                            '<th>{{ t("status") }}</th>' +
+                            '<th>{{ t("date") }}</th>' +
+                        '</tr>' +
+                    '</thead>' +
+                    '<tbody>';
+            
+            if (data.recent_attempts && data.recent_attempts.length > 0) {
+                for (var i = 0; i < data.recent_attempts.length; i++) {
+                    var attempt = data.recent_attempts[i];
+                    var badgeClass = attempt.score_percentage >= 50 ? 'bg-success' : 'bg-danger';
+                    var status = attempt.score_percentage >= 50 ? '{{ t("passed") }}' : '{{ t("failed") }}';
+                    
+                    html += '<tr>' +
+                        '<td>' + attempt.student_name + '</td>' +
+                        '<td>' +
+                            '<span class="badge ' + badgeClass + '">' +
+                                attempt.score + '/' + attempt.total_points + ' (' + attempt.score_percentage + '%)' +
+                            '</span>' +
+                        '</td>' +
+                        '<td>' +
+                            '<span class="badge ' + badgeClass + '">' + status + '</span>' +
+                        '</td>' +
+                        '<td>' + attempt.date + '</td>' +
+                    '</tr>';
+                }
+            } else {
+                html += '<tr><td colspan="4" class="text-center text-muted">{{ t("no_attempts_yet") }}</td></tr>';
+            }
+            
+            html += '</tbody></table></div>';
+            
+            resultsContent.innerHTML = html;
+        })
+        .catch(function(error) {
+            console.error('Error fetching quiz results:', error);
+            resultsContent.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>{{ t("error_loading_quiz_results") }}</div>';
+        });
+}
+
+function confirmDeleteQuiz(quizId, quizTitle) {
+    var modal = new bootstrap.Modal(document.getElementById('deleteQuizModal'));
+    var form = document.getElementById('deleteQuizForm');
+    var message = document.getElementById('deleteQuizMessage');
+    
+    // Update form action
+    form.action = '/delete_quiz/' + quizId;
+    
+    // Update confirmation message
+    message.textContent = '{{ t("confirm_delete_quiz_message") }} "' + quizTitle + '"?';
+    
+    modal.show();
+}
+</script>
+{% endblock %}
