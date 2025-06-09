@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('teacher_dashboard') }} - {{ t('school_platform') }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-chalkboard-teacher me-2"></i>{{ t('teacher_dashboard') }}</h2>
+                <div class="text-muted">
+                    {{ t('welcome') }}, {{ current_user.username }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <a href="{{ url_for('create_lesson') }}" class="card text-decoration-none">
+                <div class="card-body text-center bg-primary text-white">
+                    <i class="fas fa-plus-circle fa-3x mb-2"></i>
+                    <h5>{{ t('create_lesson') }}</h5>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <a href="{{ url_for('create_quiz') }}" class="card text-decoration-none">
+                <div class="card-body text-center bg-success text-white">
+                    <i class="fas fa-question-circle fa-3x mb-2"></i>
+                    <h5>{{ t('create_quiz') }}</h5>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <a href="{{ url_for('lessons') }}" class="card text-decoration-none">
+                <div class="card-body text-center bg-info text-white">
+                    <i class="fas fa-book fa-3x mb-2"></i>
+                    <h5>{{ t('view_lessons') }}</h5>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <a href="{{ url_for('quizzes') }}" class="card text-decoration-none">
+                <div class="card-body text-center bg-warning text-white">
+                    <i class="fas fa-list-alt fa-3x mb-2"></i>
+                    <h5>{{ t('view_quizzes') }}</h5>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Content Overview -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-book me-2"></i>{{ t('my_lessons') }} ({{ lessons|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if lessons %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>{{ t('title') }}</th>
+                                        <th>{{ t('status') }}</th>
+                                        <th>{{ t('created') }}</th>
+                                        <th>{{ t('actions') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lesson in lessons[:5] %}
+                                    <tr>
+                                        <td>{{ lesson.title }}</td>
+                                        <td>
+                                            {% if lesson.is_published %}
+                                                <span class="badge bg-success">{{ t('published') }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ t('draft') }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ lesson.created_at.strftime('%m/%d/%Y') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('view_lesson', lesson_id=lesson.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{{ url_for('edit_lesson', lesson_id=lesson.id) }}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if lessons|length > 5 %}
+                            <div class="text-center">
+                                <a href="{{ url_for('lessons') }}" class="btn btn-outline-primary">{{ t('view_all_lessons') }}</a>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-book fa-3x mb-3"></i>
+                            <p>{{ t('no_lessons_created') }}</p>
+                            <a href="{{ url_for('create_lesson') }}" class="btn btn-primary">{{ t('create_first_lesson') }}</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>{{ t('my_quizzes') }} ({{ quizzes|length }})</h5>
+                </div>
+                <div class="card-body">
+                    {% if quizzes %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>{{ t('title') }}</th>
+                                        <th>{{ t('status') }}</th>
+                                        <th>{{ t('created') }}</th>
+                                        <th>{{ t('actions') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for quiz in quizzes[:5] %}
+                                    <tr>
+                                        <td>{{ quiz.title }}</td>
+                                        <td>
+                                            {% if quiz.is_published %}
+                                                <span class="badge bg-success">{{ t('published') }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ t('draft') }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ quiz.created_at.strftime('%m/%d/%Y') }}</td>
+                                        <td>
+                                            <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if quizzes|length > 5 %}
+                            <div class="text-center">
+                                <a href="{{ url_for('quizzes') }}" class="btn btn-outline-primary">{{ t('view_all_quizzes') }}</a>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-question-circle fa-3x mb-3"></i>
+                            <p>{{ t('no_quizzes_created') }}</p>
+                            <a href="{{ url_for('create_quiz') }}" class="btn btn-success">{{ t('create_first_quiz') }}</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Performance Overview -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>{{ t('student_performance_overview') }}</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="studentPerformanceChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Student Performance Chart
+const ctx = document.getElementById('studentPerformanceChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: [
+            '{{ t("week_1") }}', 
+            '{{ t("week_2") }}', 
+            '{{ t("week_3") }}', 
+            '{{ t("week_4") }}'
+        ],
+        datasets: [{
+            label: '{{ t("average_quiz_score") }}',
+            data: [75, 82, 78, 85],
+            backgroundColor: 'rgba(54, 162, 235, 0.8)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }, {
+            label: '{{ t("lesson_completion_rate") }}',
+            data: [90, 88, 92, 95],
+            backgroundColor: 'rgba(75, 192, 192, 0.8)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

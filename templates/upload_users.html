@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('upload_users') }} - {{ t('school_platform') }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+                <h2><i class="fas fa-file-upload me-2"></i>{{ t('upload_users') }}</h2>
+                <div class="d-flex gap-2 mt-2 mt-md-0">
+                    <a href="{{ url_for('user_management') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>{{ t('back_to_user_management') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-upload me-2"></i>{{ t('upload_users_file') }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('upload_users_pdf') }}" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="pdf_file" class="form-label">{{ t('select_file') }}</label>
+                            <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf,.xlsx,.xls" required>
+                            <div class="form-text">{{ t('file_must_contain_user_info') }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="default_role" class="form-label">{{ t('default_role') }}</label>
+                            <select class="form-select" id="default_role" name="default_role" required>
+                                <option value="student">{{ t('student') }}</option>
+                                <option value="teacher">{{ t('teacher') }}</option>
+                                <option value="admin">{{ t('admin') }}</option>
+                            </select>
+                            <div class="form-text">{{ t('role_for_all_imported_users') }}</div>
+                        </div>
+                        
+                        <div class="mb-3" id="sectionField">
+                            <label for="section_id" class="form-label">{{ t('section') }}</label>
+                            <select class="form-select" id="section_id" name="section_id">
+                                <option value="">{{ t('select_section') }}</option>
+                                {% for section in all_sections %}
+                                <option value="{{ section.id }}">{{ section.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">{{ t('required_for_student_accounts') }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="default_password" class="form-label">{{ t('default_password') }}</label>
+                            <input type="text" class="form-control" id="default_password" name="default_password" value="changeme" required>
+                            <div class="form-text">{{ t('initial_password_for_all_users') }}</div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-1"></i>{{ t('upload_and_process') }}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>{{ t('instructions') }}</h5>
+                </div>
+                <div class="card-body">
+                    <h6>{{ t('file_format_requirements') }}:</h6>
+                    
+                    <div class="alert alert-primary mb-3">
+                        <h6 class="mb-2"><i class="fas fa-file-excel me-2"></i>{{ t('excel_format') }} ({{ t('masar_format') }}):</h6>
+                        <ul class="mb-0">
+                            <li>{{ t('excel_first_column_username') }}</li>
+                            <li>{{ t('excel_second_column_full_name') }}</li>
+                            <li>{{ t('excel_third_column_secret_code') }}</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-secondary mb-3">
+                        <h6 class="mb-2"><i class="fas fa-file-pdf me-2"></i>{{ t('pdf_format') }}:</h6>
+                        <ul class="mb-0">
+                            <li>{{ t('pdf_should_contain_form_fields') }}</li>
+                            <li>{{ t('first_field_full_name') }}</li>
+                            <li>{{ t('second_field_username') }}</li>
+                            <li>{{ t('third_field_secret_code') }}</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>{{ t('tip') }}:</strong> {{ t('file_upload_tip') }}
+                    </div>
+                    
+                    <h6 class="mt-3">{{ t('after_upload') }}:</h6>
+                    <ol>
+                        <li>{{ t('system_will_extract_user_info') }}</li>
+                        <li>{{ t('create_accounts_with_extracted_data') }}</li>
+                        <li>{{ t('email_will_be_username_at_school') }}</li>
+                        <li>{{ t('users_should_change_password') }}</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Section (will be shown after upload) -->
+    {% if preview_data %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-table me-2"></i>{{ t('preview_extracted_users') }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>{{ t('full_name') }}</th>
+                                    <th>{{ t('username') }}</th>
+                                    <th>{{ t('secret_code') }}</th>
+                                    <th>{{ t('role') }}</th>
+                                    <th>{{ t('section') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in preview_data %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>{{ user.full_name }}</td>
+                                    <td>{{ user.username }}</td>
+                                    <td>{{ user.secret_code }}</td>
+                                    <td>{{ user.role }}</td>
+                                    <td>{{ user.section_name }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('confirm_users_upload') }}">
+                        <input type="hidden" name="confirm_data" value="{{ preview_data_json }}">
+                        <button type="submit" class="btn btn-success mt-3">
+                            <i class="fas fa-check me-1"></i>{{ t('confirm_and_create_accounts') }}
+                        </button>
+                        <a href="{{ url_for('upload_users') }}" class="btn btn-danger mt-3">
+                            <i class="fas fa-times me-1"></i>{{ t('cancel') }}
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('default_role');
+    const sectionField = document.getElementById('sectionField');
+    const sectionSelect = document.getElementById('section_id');
+    
+    function toggleSectionField() {
+        if (roleSelect.value === 'student') {
+            sectionField.style.display = 'block';
+            sectionSelect.required = true;
+        } else {
+            sectionField.style.display = 'none';
+            sectionSelect.required = false;
+            sectionSelect.value = '';
+        }
+    }
+    
+    roleSelect.addEventListener('change', toggleSectionField);
+    toggleSectionField(); // Initial state
+});
+</script>
+{% endblock %}

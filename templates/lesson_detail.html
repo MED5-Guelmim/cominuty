@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lesson.title }} - {{ t('school_platform') }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('index') }}">{{ t('home') }}</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('lessons') }}">{{ t('lessons') }}</a></li>
+                    <li class="breadcrumb-item active">{{ lesson.title }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">{{ lesson.title }}</h3>
+                        {% if lesson.is_published %}
+                            <span class="badge bg-success">{{ t('published') }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ t('draft') }}</span>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-user me-1"></i>{{ lesson.author.username }}
+                        <i class="fas fa-calendar ms-3 me-1"></i>{{ lesson.created_at.strftime('%B %d, %Y') }}
+                    </small>
+                </div>
+                
+                <div class="card-body">
+                {% if lesson.content_type == 'file_upload' and lesson.file_path %}
+                        {% if lesson.file_type in ['pdf'] %}
+                        <div class="mb-4">
+                            <div class="alert alert-info file-display-alert">
+                                <i class="fas fa-file-pdf me-2"></i>
+                                <strong>{{ t('pdf_document') }}:</strong>
+                                <a href="{{ url_for('static', filename=lesson.file_path.replace('static/', '')) }}" target="_blank" class="alert-link ms-2">
+                                    {{ t('open_pdf_document') }}
+                                </a>
+                            </div>
+                            <div class="ratio ratio-4x3">
+                                <iframe src="{{ url_for('static', filename=lesson.file_path.replace('static/', '')) }}" class="rounded"></iframe>
+                            </div>
+                        </div>
+                        {% elif lesson.file_type in ['jpg', 'jpeg', 'png', 'gif'] %}
+                        <div class="mb-4 text-center">
+                            <img src="{{ url_for('static', filename=lesson.file_path.replace('static/', '')) }}" class="img-fluid rounded" alt="{{ lesson.title }}">
+                        </div>
+                        {% elif lesson.file_type in ['mp4', 'webm', 'ogg'] %}
+                        <div class="mb-4">
+                            <div class="alert alert-info file-display-alert">
+                                <i class="fas fa-video me-2"></i>
+                                <strong>{{ t('video') }}:</strong>
+                                <a href="{{ url_for('static', filename=lesson.file_path.replace('static/', '')) }}" download class="alert-link ms-2">
+                                    <i class="fas fa-download me-1"></i>{{ t('download_video') }}
+                                </a>
+                            </div>
+                            <div class="ratio ratio-16x9">
+                                <video controls class="rounded">
+                                    <source src="{{ url_for('static', filename=lesson.file_path.replace('static/', '')) }}" type="video/{{ lesson.file_type }}">
+                                    {{ t('browser_not_support_video') }}
+                                </video>
+                            </div>
+                        </div>
+                        {% elif lesson.file_type in ['doc', 'docx', 'ppt', 'pptx'] %}
+                        <div class="mb-4">
+                            <div class="alert alert-warning file-display-alert">
+                                <i class="fas fa-{% if lesson.file_type in ['doc', 'docx'] %}file-word{% else %}file-powerpoint{% endif %} me-2"></i>
+                                <strong>{{ lesson.file_type.upper() }} {{ t('document') }}:</strong>
+                                <a href="{{ url_for('static', filename=lesson.file_path.replace('static/', '')) }}" download class="alert-link ms-2">
+                                    <i class="fas fa-download me-1"></i>{{ t('download_file') }}
+                                </a>
+                            </div>
+                            <p class="text-muted">{{ t('file_available_for_download') }}</p>
+                        </div>
+                        {% endif %}
+                    {% elif lesson.content_type == 'video' and lesson.file_url %}
+                    <div class="mb-4">
+                        <div class="ratio ratio-16x9">
+                            <video controls class="rounded">
+                                <source src="{{ lesson.file_url }}" type="video/mp4">
+                                {{ t('browser_not_support_video') }}
+                            </video>
+                        </div>
+                    </div>
+                    {% elif lesson.content_type == 'image' and lesson.file_url %}
+                    <div class="mb-4 text-center">
+                        <img src="{{ lesson.file_url }}" class="img-fluid rounded" alt="{{ lesson.title }}">
+                    </div>
+                    {% elif lesson.content_type == 'pdf' and lesson.file_url %}
+                    <div class="mb-4">
+                        <div class="alert alert-info file-display-alert">
+                            <i class="fas fa-file-pdf me-2"></i>
+                            <a href="{{ lesson.file_url }}" target="_blank" class="alert-link">
+                                {{ t('open_pdf_document') }}
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="lesson-content">
+                        {{ lesson.content|safe }}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Lesson Navigation -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('lessons') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>{{ t('back_to_lessons') }}
+                        </a>
+                        <div>
+                            <button class="btn btn-outline-primary me-2" onclick="markAsCompleted()">
+                                <i class="fas fa-check me-2"></i>{{ t('mark_as_completed') }}
+                            </button>
+                            <button class="btn btn-primary" onclick="shareLesson()">
+                                <i class="fas fa-share me-2"></i>{{ t('share') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Lesson Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>{{ t('lesson_information') }}</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <strong>{{ t('content_type') }}:</strong>
+                            <span class="badge bg-info ms-2">
+                                <i class="fas fa-{% if lesson.content_type == 'video' %}video{% elif lesson.content_type == 'pdf' %}file-pdf{% elif lesson.content_type == 'image' %}image{% elif lesson.content_type == 'file_upload' %}file{% else %}text{% endif %} me-1"></i>
+                                {% if lesson.content_type == 'file_upload' %}{{ t('file_upload') }}{% else %}{{ t(lesson.content_type) }}{% endif %}
+                            </span>
+                        </li>
+                        {% if lesson.section_ref %}
+                        <li class="mb-2">
+                            <strong>{{ t('section') }}:</strong>
+                            <span class="badge bg-secondary ms-2">
+                                {{ lesson.section_ref.name }}
+                            </span>
+                        </li>
+                        {% endif %}
+                        <li class="mb-2">
+                            <strong>{{ t('created') }}:</strong> {{ lesson.created_at.strftime('%B %d, %Y') }}
+                        </li>
+                        <li class="mb-2">
+                            <strong>{{ t('author') }}:</strong> {{ lesson.author.username }}
+                        </li>
+                        <li class="mb-2">
+                            <strong>{{ t('status') }}:</strong>
+                            {% if lesson.is_published %}
+                                <span class="text-success">{{ t('published') }}</span>
+                            {% else %}
+                                <span class="text-secondary">{{ t('draft') }}</span>
+                            {% endif %}
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Related Lessons -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-book me-2"></i>{{ t('related_lessons') }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ t('intro_to_mathematics') }}</h6>
+                                <small>{{ t('3_days_ago') }}</small>
+                            </div>
+                            <p class="mb-1">{{ t('basic_math_concepts') }}</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ t('advanced_algebra') }}</h6>
+                                <small>{{ t('1_week_ago') }}</small>
+                            </div>
+                            <p class="mb-1">{{ t('complex_algebraic_equations') }}</p>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ t('geometry_basics') }}</h6>
+                                <small>{{ t('2_weeks_ago') }}</small>
+                            </div>
+                            <p class="mb-1">{{ t('fundamental_geometric_shapes') }}</p>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Study Tools -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-tools me-2"></i>{{ t('study_tools') }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="takeNotes()">
+                            <i class="fas fa-sticky-note me-2"></i>{{ t('take_notes') }}
+                        </button>
+                        <button class="btn btn-outline-success btn-sm" onclick="createFlashcards()">
+                            <i class="fas fa-clone me-2"></i>{{ t('create_flashcards') }}
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="downloadPDF()">
+                            <i class="fas fa-download me-2"></i>{{ t('download_pdf') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Define translations for JavaScript
+const translations = {
+    lesson_marked_completed: "{{ t('lesson_marked_completed') }}",
+    lesson_url_copied: "{{ t('lesson_url_copied') }}",
+    notes_feature_coming_soon: "{{ t('notes_feature_coming_soon') }}",
+    flashcards_feature_coming_soon: "{{ t('flashcards_feature_coming_soon') }}",
+    pdf_download_feature_coming_soon: "{{ t('pdf_download_feature_coming_soon') }}"
+};
+
+const lessonTitle = "{{ lesson.title }}";
+
+function markAsCompleted() {
+    // Mark lesson as completed
+    alert(translations.lesson_marked_completed);
+    // Here you would typically send an AJAX request to update the completion status
+}
+
+function shareLesson() {
+    // Share lesson functionality
+    if (navigator.share) {
+        navigator.share({
+            title: lessonTitle,
+            text: "{{ t('check_out_this_lesson') }}: " + lessonTitle,
+            url: window.location.href
+        });
+    } else {
+        // Fallback for browsers that don't support Web Share API
+        navigator.clipboard.writeText(window.location.href).then(function() {
+            alert(translations.lesson_url_copied);
+        });
+    }
+}
+
+function takeNotes() {
+    // Open notes modal or redirect to notes page
+    alert(translations.notes_feature_coming_soon);
+}
+
+function createFlashcards() {
+    // Create flashcards from lesson content
+    alert(translations.flashcards_feature_coming_soon);
+}
+
+function downloadPDF() {
+    // Download lesson as PDF
+    alert(translations.pdf_download_feature_coming_soon);
+}
+
+// Track lesson viewing time for analytics
+let startTime = Date.now();
+let lessonId = "{{ lesson.id }}";
+
+window.addEventListener('beforeunload', function() {
+    let duration = Math.round((Date.now() - startTime) / 1000);
+    // Send analytics data
+    fetch('/api/track_interaction', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            type: 'lesson_view',
+            content_id: parseInt(lessonId),
+            duration: duration
+        })
+    }).catch(function(err) {
+        console.log('Analytics tracking failed:', err);
+    });
+});
+</script>
+{% endblock %}

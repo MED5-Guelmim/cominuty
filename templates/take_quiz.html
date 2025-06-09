@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}{{ quiz.title }} - {{ t('school_platform') }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">{{ quiz.title }}</h3>
+                    {% if quiz.description %}
+                    <p class="mb-0 mt-2">{{ quiz.description }}</p>
+                    {% endif %}
+                </div>
+                
+                <div class="card-body">
+                    {% if questions|length > 0 %}
+                    <form method="POST" action="{{ url_for('submit_quiz', quiz_id=quiz.id) }}" id="quizForm">
+                        {% for question in questions %}
+                        <div class="question-container mb-4 p-3 border rounded">
+                            <h5 class="mb-3">{{ t('question') }} {{ loop.index }}: {{ question.points }} {{ t('points') }}</h5>
+                            <p class="question-text mb-3">{{ question.question_text }}</p>
+                            
+                            {% if question.question_type == 'multiple_choice' %}
+                                {% set options = question.options|from_json %}
+                                <div class="options-container">
+                                    {% for option in options %}
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" 
+                                               id="option_{{ question.id }}_{{ loop.index0 }}"
+                                               name="question_{{ question.id }}" 
+                                               value="{{ option }}" required>
+                                        <label class="form-check-label" for="option_{{ question.id }}_{{ loop.index0 }}">
+                                            {{ option }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                            {% elif question.question_type == 'true_false' %}
+                                <div class="options-container">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" 
+                                               id="option_{{ question.id }}_true"
+                                               name="question_{{ question.id }}" 
+                                               value="True" required>
+                                        <label class="form-check-label" for="option_{{ question.id }}_true">
+                                            {{ t('true') }}
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="radio" 
+                                               id="option_{{ question.id }}_false"
+                                               name="question_{{ question.id }}" 
+                                               value="False" required>
+                                        <label class="form-check-label" for="option_{{ question.id }}_false">
+                                            {{ t('false') }}
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                            {% elif question.question_type == 'short_answer' %}
+                                <div class="mb-3">
+                                    <input type="text" class="form-control" 
+                                           id="answer_{{ question.id }}"
+                                           name="question_{{ question.id }}" 
+                                           placeholder="{{ t('your_answer') }}" required>
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('quizzes') }}" class="btn btn-secondary">{{ t('back_to_quizzes') }}</a>
+                            <button type="submit" class="btn btn-success">{{ t('submit_quiz') }}</button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <p class="mb-0">{{ t('no_questions_found') }}</p>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{{ url_for('quizzes') }}" class="btn btn-secondary">{{ t('back_to_quizzes') }}</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ t('quiz_information') }}</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li><strong>{{ t('questions') }}:</strong> {{ questions|length }}</li>
+                        <li><strong>{{ t('total_points') }}:</strong> {{ questions|sum(attribute='points') }}</li>
+                        <li><strong>{{ t('created_by') }}:</strong> {{ quiz.author.username }}</li>
+                        <li><strong>{{ t('section') }}:</strong> {{ quiz.section_ref.name }}</li>
+                    </ul>
+                    
+                    <div class="mt-3">
+                        <div class="progress">
+                            <div id="quiz-progress" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3 text-center">
+                        <div id="timer" class="fs-4">00:00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize quiz timer if available
+    if (typeof SchoolPlatform !== 'undefined' && SchoolPlatform.QuizTimer) {
+        const quizTimer = new SchoolPlatform.QuizTimer();
+    }
+    
+    // Track quiz progress
+    const quizForm = document.getElementById('quizForm');
+    const progressBar = document.getElementById('quiz-progress');
+    
+    if (quizForm && progressBar) {
+        // Function to update progress
+        function updateProgress() {
+            // Count answered questions
+            let answeredCount = 0;
+            let totalQuestions = {{ questions|length or 0 }};
+            
+            // Check radio buttons
+            document.querySelectorAll('input[type="radio"]:checked').forEach(function() {
+                answeredCount++;
+            });
+            
+            // Check text inputs with values
+            document.querySelectorAll('input[type="text"]').forEach(function(input) {
+                if (input.value.trim() !== '') {
+                    answeredCount++;
+                }
+            });
+            
+            // Calculate and update progress
+            const progress = Math.round((answeredCount / totalQuestions) * 100);
+            progressBar.style.width = progress + '%';
+            progressBar.textContent = progress + '%';
+            progressBar.setAttribute('aria-valuenow', progress);
+            
+            // Update analytics if available
+            if (typeof SchoolPlatform !== 'undefined' && SchoolPlatform.updateProgress) {
+                SchoolPlatform.updateProgress('quiz', {{ quiz.id }}, progress);
+            }
+        }
+        
+        // Add event listeners to track progress
+        document.querySelectorAll('input[type="radio"]').forEach(function(input) {
+            input.addEventListener('change', updateProgress);
+        });
+        
+        document.querySelectorAll('input[type="text"]').forEach(function(input) {
+            input.addEventListener('input', updateProgress);
+        });
+        
+        // Validate form before submission
+        quizForm.addEventListener('submit', function(event) {
+            // Check if all questions are answered
+            let allAnswered = true;
+            let unansweredQuestions = [];
+            
+            {% for question in questions %}
+            (function() {
+                const questionId = "{{ question.id }}";
+                const questionIndex = {{ loop.index }};
+                let isAnswered = false;
+                
+                if (document.querySelector('input[name="question_' + questionId + '"]:checked')) {
+                    isAnswered = true;
+                } else {
+                    const textInput = document.querySelector('input[name="question_' + questionId + '"][type="text"]');
+                    if (textInput && textInput.value.trim() !== '') {
+                        isAnswered = true;
+                    }
+                }
+                
+                if (!isAnswered) {
+                    allAnswered = false;
+                    unansweredQuestions.push(questionIndex);
+                }
+            })();
+            {% endfor %}
+            
+            if (!allAnswered) {
+                event.preventDefault();
+                const questionText = unansweredQuestions.length === 1 ? "{{ t('question') }}" : "{{ t('questions') }}";
+                alert("{{ t('please_answer_all_questions') }} (" + questionText + " " + unansweredQuestions.join(', ') + ")");
+                return false;
+            }
+            
+            // Confirm submission
+            if (!confirm("{{ t('confirm_quiz_submission') }}")) {
+                event.preventDefault();
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Initialize progress on page load
+        updateProgress();
+    }
+});
+</script>
+{% endblock %}
